@@ -1,0 +1,34 @@
+{
+  "name": "@effectful/kafka-workflow",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "author": "Vitaliy Akimov <vitaliy.akimov@gmail.com>",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest --rootDir src"
+  },
+  "keywords": [
+    "effectful",
+    "kafka",
+    "workflow"
+  ],
+  "dependencies": {
+    "@effectful/es-persist": "^1.4.0",
+    "@effectful/es-persist-serialization": "^1.4.0",
+    "@effectful/serialization": "^1.4.0"
+  },
+  "devDependencies": {
+    "@effectful/es": "^1.4.0",
+    "@babel/cli": "^7.16.0",
+    "@babel/core": "^7.16.0",
+    "@babel/plugin-transform-modules-commonjs": "^7.16.0",
+    "@babel/plugin-transform-typescript": "^7.16.1",
+    "@babel/preset-env": "^7.16.4",
+    "@babel/preset-typescript": "^7.16.0",
+    "babel-loader": "^8.2.3",
+    "typescript": "^4.5.2",
+    "webpack": "^5.64.4",
+    "jest": "^27.4.7"
+  }
+}

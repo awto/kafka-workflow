@@ -1,0 +1,245 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`abondoned and resumed 1`] = `
+Array [
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:1\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "email": "someone@example.com",
+      "type": "updateEmail",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:2\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:2",
+    "value": undefined,
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "someone@example.com",
+    "topic": "ecommerce-reminder",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:3\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "sugar",
+        "quantity": 2,
+      },
+      "type": "addToCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:4\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "type": "checkout",
+    },
+  },
+]
+`;
+
+exports[`abondoned forever 1`] = `
+Array [
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:1\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "email": "someone@example.com",
+      "type": "updateEmail",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:2\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:2",
+    "value": undefined,
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "someone@example.com",
+    "topic": "ecommerce-reminder",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:3\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:3",
+    "value": undefined,
+  },
+]
+`;
+
+exports[`cart operations 1`] = `
+Array [
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:1\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "type": "checkout",
+    },
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "Must have items to check out!",
+    "topic": "checkoutError",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:2\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "email": "someone@example.com",
+      "type": "updateEmail",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:3\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "type": "checkout",
+    },
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "Must have items to check out!",
+    "topic": "checkoutError",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:4\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "teapot",
+        "quantity": 30,
+      },
+      "type": "addToCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:5\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "sigar",
+        "quantity": 0,
+      },
+      "type": "addToCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:6\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "teapot",
+        "quantity": 20,
+      },
+      "type": "addToCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:7\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "email": "someone.else@example.com",
+      "type": "updateEmail",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:8\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "sigar",
+        "quantity": 11,
+      },
+      "type": "removeFromCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:9\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "item": Object {
+        "productId": "sugar",
+        "quantity": 2,
+      },
+      "type": "addToCart",
+    },
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:10\\"}",
+    "msg": "50",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "main",
+    "value": Object {
+      "type": "checkout",
+    },
+  },
+]
+`;

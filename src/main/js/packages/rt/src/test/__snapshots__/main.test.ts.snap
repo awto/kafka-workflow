@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`suspend and resume 1`] = `
+Array [
+  Array [
+    Array [
+      "{\\"x\\":[{\\"f\\":[[\\"dest\\",[]],[\\"state\\",0],[\\"value\\",{\\"$\\":\\"undefined\\"}],[\\"$\\",{\\"f\\":[[\\"_arg1\\",{\\"f\\":[[\\"name\\",\\"arg2\\"]]}],[\\"_arg2\\",{\\"f\\":[[\\"name\\",\\"arg1\\"]]}]]}],[\\"$await\\",{\\"r\\":1}],[\\"$step\\",6],[\\"cont\\",{\\"f\\":[[\\"dest\\",[{\\"$\\":\\"FinalCont\\"}]],[\\"parent\\",{\\"r\\":0}],[\\"state\\",0]],\\"$\\":\\"Residual\\"}],[\\"$last\\",5]],\\"$\\":\\"suspendResumeTest\\"},{\\"f\\":[[\\"dest\\",[{\\"r\\":0}]],[\\"parent\\",{\\"r\\":2}],[\\"state\\",0]],\\"$\\":\\"Residual\\"},{\\"f\\":[[\\"dest\\",[]],[\\"state\\",0],[\\"value\\",{\\"$\\":\\"undefined\\"}],[\\"$\\",{\\"f\\":[[\\"_name\\",\\"msg1:{\\\\\\"name\\\\\\":\\\\\\"arg2\\\\\\"}/{\\\\\\"name\\\\\\":\\\\\\"arg1\\\\\\"}\\"],[\\"_ref\\",\\"testRef\\"]]}],[\\"$await\\",{\\"r\\":3}],[\\"$step\\",6],[\\"cont\\",{\\"r\\":1}],[\\"$last\\",5]],\\"$\\":\\"post\\"},{\\"f\\":[[\\"dest\\",[{\\"r\\":2}]],[\\"parent\\",{\\"$\\":\\"undefined\\"}],[\\"state\\",0],[\\"id\\",\\"testRef\\"]],\\"$\\":\\"Suspended\\"}],\\"f\\":[[\\"suspended\\",{\\"k\\":[\\"testRef\\"],\\"v\\":[{\\"r\\":3}],\\"$\\":\\"Map\\"}]],\\"running\\":true}",
+    ],
+    Array [
+      "testTid|testRef",
+      "msg1:{\\"name\\":\\"arg2\\"}/{\\"name\\":\\"arg1\\"}",
+      "schedule",
+    ],
+  ],
+  Array [
+    Array [
+      "{\\"x\\":[{\\"f\\":[[\\"dest\\",[]],[\\"state\\",0],[\\"value\\",{\\"$\\":\\"undefined\\"}],[\\"$\\",{\\"f\\":[[\\"_arg1\\",{\\"f\\":[[\\"name\\",\\"arg2\\"]]}],[\\"_arg2\\",{\\"f\\":[[\\"name\\",\\"arg1\\"]]}]]}],[\\"$await\\",{\\"r\\":1}],[\\"$step\\",7],[\\"cont\\",{\\"f\\":[[\\"dest\\",[{\\"$\\":\\"FinalCont\\"}]],[\\"parent\\",{\\"r\\":0}],[\\"state\\",0]],\\"$\\":\\"Residual\\"}],[\\"$last\\",6]],\\"$\\":\\"suspendResumeTest\\"},{\\"f\\":[[\\"dest\\",[{\\"r\\":0}]],[\\"parent\\",{\\"r\\":2}],[\\"state\\",0]],\\"$\\":\\"Residual\\"},{\\"f\\":[[\\"dest\\",[]],[\\"state\\",0],[\\"value\\",{\\"$\\":\\"undefined\\"}],[\\"$\\",{\\"f\\":[[\\"_name\\",\\"msg1:{\\\\\\"name\\\\\\":\\\\\\"arg2\\\\\\"}/{\\\\\\"name\\\\\\":\\\\\\"arg1\\\\\\"}\\"],[\\"_ref\\",\\"testRef\\"]]}],[\\"$await\\",{\\"r\\":3}],[\\"$step\\",6],[\\"cont\\",{\\"r\\":1}],[\\"$last\\",5]],\\"$\\":\\"post\\"},{\\"f\\":[[\\"dest\\",[{\\"r\\":2}]],[\\"parent\\",{\\"$\\":\\"undefined\\"}],[\\"state\\",0],[\\"id\\",\\"testRef\\"]],\\"$\\":\\"Suspended\\"}],\\"f\\":[[\\"suspended\\",{\\"k\\":[\\"testRef\\"],\\"v\\":[{\\"r\\":3}],\\"$\\":\\"Map\\"}]],\\"running\\":true}",
+    ],
+    Array [
+      "testTid",
+      "msg1:{\\"name\\":\\"arg2\\"}/{\\"name\\":\\"arg1\\"}",
+      "output",
+    ],
+    Array [
+      "testTid|testRef",
+      "msg1:{\\"name\\":\\"arg2\\"}/{\\"name\\":\\"arg1\\"}",
+      "schedule",
+    ],
+  ],
+  Array [
+    Array [
+      "",
+    ],
+    Array [
+      "testTid",
+      "msg1:{\\"name\\":\\"arg2\\"}/{\\"name\\":\\"arg1\\"}",
+      "output",
+    ],
+    Array [
+      "testTid",
+      "\\"suspendResumeTestRet\\"",
+      "workflow-result",
+    ],
+  ],
+]
+`;

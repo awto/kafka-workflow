@@ -1,0 +1,124 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`concurent execution 1`] = `
+Array [
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:1",
+    "topic": "saga-reserve-car",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:2",
+    "topic": "saga-reserve-hotel",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:3",
+    "topic": "saga-reserve-flight",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:4\\"}",
+    "msg": "1000",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:3",
+    "value": Object {
+      "id": "flight-id",
+    },
+  },
+  Object {
+    "resume": "testStep:2",
+    "value": Object {
+      "id": "hotel-id",
+    },
+  },
+  Object {
+    "resume": "testStep:1",
+    "value": Object {
+      "id": "car-id",
+    },
+  },
+]
+`;
+
+exports[`one thread is rejected 1`] = `
+Array [
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:1",
+    "topic": "saga-reserve-car",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:2",
+    "topic": "saga-reserve-hotel",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:3",
+    "topic": "saga-reserve-flight",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:4\\"}",
+    "msg": "1000",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:3",
+    "value": Object {
+      "id": "flight-id",
+    },
+  },
+  Object {
+    "reason": "not available",
+    "reject": "testStep:2",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:3",
+    "topic": "saga-cancel-flight",
+  },
+]
+`;
+
+exports[`timeout 1`] = `
+Array [
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:1",
+    "topic": "saga-reserve-car",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:2",
+    "topic": "saga-reserve-hotel",
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:3",
+    "topic": "saga-reserve-flight",
+  },
+  Object {
+    "dest": "testThread|{\\"ref\\":\\"testStep:4\\"}",
+    "msg": "1000",
+    "topic": "workflow-scheduler",
+  },
+  Object {
+    "resume": "testStep:1",
+    "value": Object {
+      "id": "car-id",
+    },
+  },
+  Object {
+    "resume": "testStep:4",
+    "value": undefined,
+  },
+  Object {
+    "dest": "testThread",
+    "msg": "testStep:1",
+    "topic": "saga-cancel-car",
+  },
+]
+`;

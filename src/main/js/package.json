@@ -1,0 +1,14 @@
+{
+  "name": "js",
+  "version": "1.0.0",
+  "description": "Workspaces root for Effectful Kafka Workflow projects",
+  "main": "index.js",
+  "author": "Vitaliy Akimov <vitaliy.akimov@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "prepare": "npm run build --workspaces",
+    "test": "npm test --workspaces"
+  }
+}
