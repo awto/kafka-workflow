@@ -10,6 +10,15 @@ Workflow scripts run on [Kafka Streams](https://kafka.apache.org/documentation/s
 
 Kafka takes all the burden of making such workflows highly scalable, elastic, fault-tolerant, distributed, and much more. In addition, workflows are simple, easy to read, easy to write, easy to maintain, and easy to integrate with other components of Kafka-based infrastructure.
 
+Typical use cases include:
+
+  * Business Process Automation
+  * Microservices Orchestration
+  * Distributed Transactions
+  * Infrastructure Provisioning
+  * Monitoring and Polling
+  * Data Pipelines
+
 The workflow code in JavaScript looks like this:
 
 ```javascript
@@ -216,3 +225,9 @@ for(const i of subscriptions) {
 The script runs like a usual JS. First we load subscriptions and payments from some DB. If it is plain JS we need to re-execute the whole script to keep the "paid" variable up to date. But we can also derive which part of the execution trace to recalculate. And in this case, this can be just a single iteration.
 
 It is, however, a big task, with quite a few complex things to solve, e.g., how to update a script to a new version (we don't want to recalculate the whole program there too, only some affected parts). Moreover, the Kafka log doesn't fit here too. For example, we need a higher-level logarithmic time access tree instead of a constant time access sequence. However, we can probably implement this kind of data structure on the Kafka log.
+
+### TODO: Other runners
+
+This approach doesn't require Kafka and will work on any streams processor. It only needs a join capability of a stream with a state. The system will inherit all the reliability and scalability from the runner.  
+
+Some RDBMS may be a runner too, since the concept of tables is dual to streams. 
