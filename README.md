@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/awto/kafka-workflow/actions/workflows/main.yml/badge.svg)](https://github.com/awto/kafka-workflow/actions/workflows/main.yml)
 
+There is an alternative JVM version - [javactrl-kafka](https://github.com/javactrl/javactrl-kafka).
+
 The project is a minimalistic but feature-complete workflow-as-code approach implementation.
 
 Define workflows as usual JavaScript/TypeScript async functions except `await` expressions there may await for events much longer (hours, days, months, etc.). 
