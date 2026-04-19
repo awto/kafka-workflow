@@ -138,7 +138,7 @@ export async function runSerialContenders(harness, prefix = "mutex-it") {
 export async function runTimeoutGrant(
   harness,
   prefix = "mutex-it-timeout",
-  { afterQueued } = {}
+  { afterQueued, holderLockTimeoutMS = 3000 } = {}
 ) {
   const resourceId = `${prefix}-shared`;
   const alice = `${prefix}-alice`;
@@ -148,18 +148,11 @@ export async function runTimeoutGrant(
     threadId: alice,
     resourceId,
     owner: alice,
-    lockTimeoutMS: 3000
+    lockTimeoutMS: holderLockTimeoutMS
   });
   await maybePause();
   const aliceCritical = await waitCritical(harness, alice);
   assert.equal(aliceCritical.resourceId, resourceId);
-
-  const timeout = await harness.next(
-    "workflow-scheduler",
-    (record) => record.key.startsWith(`${resourceId}|`) && record.value === "3000",
-    WAIT_TIMEOUT_MS
-  );
-  assert.equal(timeout.value, "3000");
 
   await startContender(harness, {
     threadId: bob,
@@ -181,6 +174,16 @@ export async function runTimeoutGrant(
       position: 1
     }
   );
+
+  const timeout = await harness.next(
+    "workflow-scheduler",
+    (record) =>
+      record.key.startsWith(`${resourceId}|`) &&
+      record.value === String(holderLockTimeoutMS),
+    WAIT_TIMEOUT_MS
+  );
+  assert.equal(timeout.value, String(holderLockTimeoutMS));
+
   if (afterQueued) {
     await afterQueued();
   }

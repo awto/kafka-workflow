@@ -112,6 +112,7 @@ async function runSerialContendersWithChaos(harness) {
 
 async function runTimeoutGrantWithSchedulerChaos(harness) {
   await runTimeoutGrant(harness, "temporal-mutex-chaos-timeout", {
+    holderLockTimeoutMS: 15_000,
     afterQueued: () => bounceRunner("scheduler")
   });
 }
