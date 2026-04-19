@@ -1,0 +1,6 @@
+{
+  "extends": "../../_build/tsconfig.bundle.json",
+  "compilerOptions": {
+    "rootDir": "../.."
+  }
+}

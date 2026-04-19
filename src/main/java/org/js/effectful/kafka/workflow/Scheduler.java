@@ -29,16 +29,26 @@ import org.apache.kafka.streams.state.Stores;
  * If the delay value is "0" the corresponding job will be canceled.
  */
 public class Scheduler {
+  public static String TICK_MS = "workflow.scheduler.tick-ms";
 
   public static class SchedulerProcessor implements Processor<String, String, String, String> {
     private ProcessorContext<String, String> context;
     private Cancellable cancel;
     private KeyValueStore<Long, List<String>> fwd;
     private KeyValueStore<String, Long> back;
+    private final long tickMs;
+
+    public SchedulerProcessor() {
+      this(60000);
+    }
+
+    public SchedulerProcessor(long tickMs) {
+      this.tickMs = tickMs;
+    }
 
     public void init(final ProcessorContext<String, String> context) {
       this.context = context;
-      cancel = context.schedule(Duration.ofMinutes(1), PunctuationType.WALL_CLOCK_TIME,
+      cancel = context.schedule(Duration.ofMillis(tickMs), PunctuationType.WALL_CLOCK_TIME,
           this::punctuate);
       fwd = context.getStateStore("fwd");
       back = context.getStateStore("back");
@@ -110,9 +120,10 @@ public class Scheduler {
 
   public static void main(String[] args) throws IOException {
     final var config = createConfig(args.length > 0 ? args[0] : null);
+    final var tickMs = Long.parseLong(config.getProperty(TICK_MS, "60000"));
     final var topology = new Topology();
     topology.addSource("Events", "workflow-scheduler")
-        .addProcessor("Process", () -> new SchedulerProcessor(), "Events")
+        .addProcessor("Process", () -> new SchedulerProcessor(tickMs), "Events")
         .addStateStore(Stores.keyValueStoreBuilder(
             Stores.persistentKeyValueStore("back"),
             Serdes.String(),

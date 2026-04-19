@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 public class Engine {
 
   private static String NEW_THREAD_PREFIX = "new:";
+  private static String INIT_THREAD_PREFIX = "init:";
+  private static final String WORKFLOW_RESUME_TOPIC = "workflow-resume";
   public static String IN_MEMORY_STORE = "workflow.store.in-memory";
   private static final Logger log = LoggerFactory.getLogger(Engine.class);
 
@@ -80,8 +82,16 @@ public class Engine {
       String state = null;
       var resume = record.value();
       final var newThread = resume.startsWith(NEW_THREAD_PREFIX);
+      final var initThread = resume.startsWith(INIT_THREAD_PREFIX);
       if (newThread)
         resume = resume.substring(NEW_THREAD_PREFIX.length());
+      else if (initThread) {
+        state = store.get(threadId);
+        if (state != null) {
+          return;
+        }
+        resume = resume.substring(INIT_THREAD_PREFIX.length());
+      }
       else {
         state = store.get(threadId);
         if (state == null) {
@@ -119,18 +129,19 @@ public class Engine {
     final var topology = new Topology();
     final var source = Source.newBuilder("js", new FileReader(index), "index.js").build();
     try (final var context = createScriptContext(source)) {
-      topology.addSource("Loop", "workflow-resume")
+      topology.addSource("Loop", WORKFLOW_RESUME_TOPIC)
           .addProcessor("Process", () -> new JoinProcessor(source), "Loop")
           .addStateStore(Stores.keyValueStoreBuilder(
               Boolean.parseBoolean(config.getProperty(IN_MEMORY_STORE)) ? Stores.inMemoryKeyValueStore("store")
                   : Stores.persistentKeyValueStore("store"),
               Serdes.String(),
               Serdes.String()), "Process")
-          .addSink("workflow-resume", "workflow-resume", "Process");
+          .addSink(WORKFLOW_RESUME_TOPIC, WORKFLOW_RESUME_TOPIC, "Process");
       final var outputTopics = new ArrayList<String>();
       context.eval("js", "efwf$outputTopics").execute(outputTopics);
       for (var i : outputTopics)
-        topology.addSink(i, i, "Process");
+        if (!WORKFLOW_RESUME_TOPIC.equals(i))
+          topology.addSink(i, i, "Process");
     }
     return topology;
   }
@@ -147,6 +158,34 @@ public class Engine {
         .options(options)
         .build();
     try {
+      context.eval("js", """
+          globalThis.process = globalThis.process || {};
+          process.env = process.env || {};
+          process.env.EFFECTFUL_DEBUGGER_TRANSPORT = process.env.EFFECTFUL_DEBUGGER_TRANSPORT || "none";
+          process.domain = process.domain || null;
+          const efwfNativePromise = Promise;
+          globalThis.queueMicrotask = globalThis.queueMicrotask || function(callback) {
+            if (typeof callback !== "function") return undefined;
+            return efwfNativePromise.resolve().then(function() {
+              callback();
+            });
+          };
+          if (!process.nextTick) {
+            process.nextTick = function(callback) {
+              return globalThis.queueMicrotask(callback);
+            };
+          }
+          globalThis.setImmediate = globalThis.setImmediate || function(callback) {
+            return globalThis.queueMicrotask(callback);
+          };
+          globalThis.clearImmediate = globalThis.clearImmediate || function() {};
+          globalThis.setTimeout = globalThis.setTimeout || function(callback) {
+            return globalThis.queueMicrotask(callback);
+          };
+          globalThis.clearTimeout = globalThis.clearTimeout || function() {};
+          globalThis.setInterval = globalThis.setInterval || function() { return 0; };
+          globalThis.clearInterval = globalThis.clearInterval || function() {};
+          """);
       context.eval(source);
       return context;
     } catch (Exception e) {

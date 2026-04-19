@@ -1,0 +1,10 @@
+{
+  "extends": "../_build/tsconfig.version-lib-es2017.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "lib"
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}
