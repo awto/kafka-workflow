@@ -1,0 +1,124 @@
+name: workflow-ecommerce-versioned-integration
+
+x-tooling: &tooling
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: kafka-workflow-integration-tooling:node24-maven3.9.11
+  working_dir: /workspace/kafka-workflow
+  volumes:
+    - ../../../../../..:/workspace/kafka-workflow
+    - integration-target:/workspace/kafka-workflow/target
+    - maven-repo:/root/.m2
+    - npm-cache:/root/.npm
+
+services:
+  kafka:
+    image: apache/kafka:4.2.0
+    hostname: kafka
+    ports:
+      - "39092:39092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:39092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://127.0.0.1:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  prepare:
+    <<: *tooling
+    command: >
+      sh -lc "
+        set -eux;
+        cd src/main/js;
+        npm ci --ignore-scripts;
+        npm run build --workspace packages/rt --workspace demos/workflow-versioning-demo --workspace demos/workflow-ecommerce-v1_0 --workspace demos/workflow-ecommerce-v1_1 --workspace demos/workflow-ecommerce-v2_0 --workspace demos/workflow-ecommerce-versioned;
+        cd /workspace/kafka-workflow;
+        mvn -q -DskipTests resources:resources compiler:compile dependency:copy-dependencies -DincludeScope=runtime;
+      "
+
+  topics:
+    <<: *tooling
+    depends_on:
+      kafka:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    command: >
+      sh -lc "
+        set -eux;
+        node src/main/js/demos/workflow-ecommerce-versioned/integration/create-topics.mjs;
+      "
+
+  engine:
+    <<: *tooling
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
+      topics:
+        condition: service_completed_successfully
+    command: >
+      sh -lc "
+        exec java -cp 'target/classes:target/dependency/*' org.js.effectful.kafka.workflow.Engine src/main/resources/static/built/ecommerce-versioned/index.js src/main/js/demos/workflow-ecommerce-versioned/integration/engine.properties;
+      "
+
+  scheduler:
+    <<: *tooling
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
+      topics:
+        condition: service_completed_successfully
+    command: >
+      sh -lc "
+        exec java -cp 'target/classes:target/dependency/*' org.js.effectful.kafka.workflow.Scheduler src/main/js/demos/workflow-ecommerce-versioned/integration/scheduler.properties;
+      "
+
+  test:
+    <<: *tooling
+    depends_on:
+      kafka:
+        condition: service_healthy
+      prepare:
+        condition: service_completed_successfully
+      topics:
+        condition: service_completed_successfully
+      engine:
+        condition: service_started
+      scheduler:
+        condition: service_started
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    command: >
+      sh -lc "
+        set -eux;
+        node src/main/js/demos/workflow-ecommerce-versioned/integration/test.mjs;
+      "
+
+volumes:
+  integration-target:
+  maven-repo:
+  npm-cache:

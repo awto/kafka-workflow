@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "sourceMap": true,
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "types": ["node", "jest"]
+  }
+}

@@ -1,8 +1,0 @@
-{
-  "presets": [
-    ["@babel/preset-env", {"targets": {"node": "current"}}],
-    "@babel/preset-typescript",
-    ["@effectful/kafka-workflow/preset.js", {"importRT":"../../main"}]
-  ],
-  "passPerPreset":true
-}

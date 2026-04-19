@@ -1,16 +1,105 @@
-# Workflow-as-code on Kafka
+# Durable JavaScript workflows on Kafka
 
 [![CI](https://github.com/awto/kafka-workflow/actions/workflows/main.yml/badge.svg)](https://github.com/awto/kafka-workflow/actions/workflows/main.yml)
 
-There is an alternative JVM version - [javactrl-kafka](https://github.com/javactrl/javactrl-kafka).
+Kafka Workflow is a small workflow-as-code runtime for durable JavaScript and
+TypeScript workflows on Kafka Streams.
 
-The project is a minimalistic but feature-complete workflow-as-code approach implementation.
+Workflow code is normal `async` code. The difference is that an `await` can
+wait for an external event for hours, days, or months while the continuation is
+serialized into Kafka Streams state. There is no workflow DSL, no heavyweight
+SDK surface, and no built-in policy engine for things that are better expressed
+as application protocols.
 
-Define workflows as usual JavaScript/TypeScript async functions except `await` expressions there may await for events much longer (hours, days, months, etc.). 
+Workflow scripts run on [Kafka Streams](https://kafka.apache.org/documentation/streams/) clusters. The runtime stores workflow continuations in the stream local state store and resumes them from an internal continuation topic, `workflow-resume`.
 
-Workflow scripts run on [Kafka Streams](https://kafka.apache.org/documentation/streams/) clusters. The scripts store their state in their stream's local state and listen to events on a dedicated continuation topic (`"workflow-resume"`).
+Kafka supplies the hard distributed-systems pieces: partitioning, recovery,
+elastic stream processing, and durable logs. The workflow runtime stays small:
+direct `async` code, durable refs, output records, workflow threads, and
+cancellation-aware promise combinators.
 
-Kafka takes all the burden of making such workflows highly scalable, elastic, fault-tolerant, distributed, and much more. In addition, workflows are simple, easy to read, easy to write, easy to maintain, and easy to integrate with other components of Kafka-based infrastructure.
+The design rule is that domain policy should stay in workflow code. Sagas,
+human approval, queries, updates, child workflows, delayed cleanup, and
+versioning are examples, not runtime plugins. If a pattern can be expressed as
+messages between durable workflow threads, it does not need a dedicated core
+API.
+
+## Why This Is Different
+
+| Conventional workflow engines often add... | Kafka Workflow keeps it as... |
+| --- | --- |
+| Workflow-specific DSLs and handler registries | Plain TypeScript functions, loops, branches, and `await`. |
+| Activity, timer, signal, query, update, child-workflow, and versioning APIs | Durable refs, output records, workflow threads, and normal message protocols. |
+| Framework-owned versioning and patch markers | Userland upgrade workflows and handoff envelopes, when the application needs them. |
+| Runtime-level saga abstractions | Direct compensation is just a set of function callback written in the workflow. |
+| Special cancellation scope APIs | Cancellation-aware `Promise.race`, `Promise.all`, `Promise.any`, and `Promise.allSettled`. |
+
+The result is a small core that is easy to inspect and easy to replace. The
+demos are not toy wrappers around hidden runtime features; they are the
+patterns themselves, implemented as ordinary workflow code.
+
+## Small core
+
+The runtime core does a small number of things:
+
+- persists JavaScript continuations while workflow code is awaiting external
+  events;
+- resumes those continuations from `workflow-resume` records;
+- emits output records from workflow code;
+- starts durable workflow threads by key;
+- propagates structured cancellation through workflow-aware promises.
+
+The runtime deliberately does not own higher-level policy:
+
+- no built-in versioning system;
+- no built-in saga or compensation framework;
+- no built-in query, signal, or update registry;
+- no built-in workflow registry or deployment policy;
+- no production scheduler;
+- no domain-specific retry or timeout policy.
+
+Those are normal workflow patterns. The demos show working versions, but
+applications can replace them with protocols that fit their own domain.
+
+The active JavaScript runtime is [src/main/js/packages/rt](src/main/js/packages/rt). The examples live under [src/main/js/demos](src/main/js/demos), starting with the minimal workflow at [src/main/js/demos/workflow-minimal/src/index.ts](src/main/js/demos/workflow-minimal/src/index.ts) and the primary saga at [src/main/js/demos/workflow-trip-booking-saga/src/index.ts](src/main/js/demos/workflow-trip-booking-saga/src/index.ts). The demo index is [src/main/js/demos/README.md](src/main/js/demos/README.md), including versioning demos, human approval, Docker Compose chaos tests, and a dedicated [Temporal comparison track](src/main/js/demos/temporal-ports/README.md).
+
+## Run one demo locally
+
+The fastest path to a passing workflow example is the minimal unit harness. It
+builds one workflow bundle and runs one workflow test without starting Kafka or
+Docker:
+
+```sh
+cd src/main/js
+npm ci --ignore-scripts
+npm test --workspace demos/workflow-minimal
+```
+
+After that, run the trip-booking saga when you want cancellation,
+compensation, timers, and the full Kafka Streams engine/scheduler path:
+
+```sh
+npm test --workspace demos/workflow-trip-booking-saga
+npm run test:integration --workspace demos/workflow-trip-booking-saga
+```
+
+## Architecture in one screen
+
+```mermaid
+flowchart LR
+  input["input topic or workflow-resume new:*"] --> engine["Kafka Streams engine"]
+  resume["workflow-resume"] --> engine
+  engine <--> state["local state store\nserialized continuation"]
+  engine --> workflow["workflow async function\nGraalVM JS"]
+  workflow --> outputs["domain output topics"]
+  workflow --> resume
+  outputs --> services["services, users, schedulers"]
+  services --> resume
+```
+
+`workflow-resume` is the internal loop. Domain topics stay explicit in
+`manifest.outputTopics`, and external services resume workflows by writing a
+record with the waiting ref id.
 
 Typical use cases include:
 
@@ -21,215 +110,301 @@ Typical use cases include:
   * Monitoring and Polling
   * Data Pipelines
 
-The workflow code in JavaScript looks like this:
+Workflow code stays direct:
 
-```javascript
-export async function main() {
-  const compensations = [];
+```ts
+export default async function tripBooking() {
+  const compensations: Array<() => Promise<void>> = [];
   try {
     const car = await reserveCar();
-    compensations.push(cancelCar.bind(undefined, car));
+    compensations.push(() => cancelCar(car));
     const hotel = await reserveHotel();
-    compensations.push(cancelHotel.bind(undefined, hotel));
+    compensations.push(() => cancelHotel(hotel));
     const flight = await reserveFlight();
-    compensations.push(cancelFlight.bind(undefined, flight));
+    compensations.push(() => cancelFlight(flight));
+    return { car, hotel, flight };
   } catch (e) {
-    await Promise.all(compensations.map(i => i()));
+    await Promise.all(compensations.map((run) => run()));
+    throw e;
   }
 }
 ```
 
-There are workflow examples in [src/main/js/packages](src/main/js/packages)  - [workflow-ecommerce](src/main/js/packages/) 
+## Versioning is just another workflow
 
-Kafka Workflow tool compiles JavaScript workflow definitions using [effectful.js](https://github.com/awto/effectfuljs) transpiler into another a lower level JavaScript. It is an own implementation of async functions. Moreover, the whole script state can serialize and deserialize the entire state using [@effectfuljs/serialization](https://github.com/awto/effectfuljs/tree/main/packages/serialization) library.
+Workflow versioning is intentionally not built into the runtime. The versioned
+demos show one possible policy, implemented with the same primitives as any
+other workflow:
 
-Kafka Streams processor uses GraalVM JS engine to run the low-level JavaScript file. The engine has a high node.js compatibility level, so most npm packages are available in the scripts.
+- start messages use a versioned envelope with `workflow`, `version`, `kind`,
+  `bookingId`, and payload fields;
+- an upgrade manager is a normal workflow, `versioning-upgrade-manager`, that
+  receives a command and emits ordinary upgrade-dispatch records;
+- a running old workflow can hand off compatible state by writing a normal
+  `versioning-handoff` record;
+- the new workflow version adopts that handoff if the compatibility rule allows
+  it;
+- delayed release/cleanup is also just another workflow thread.
 
-## Usage
+That is only an example protocol. Applications can use different envelope
+shapes, version rules, upgrade triggers, registries, cleanup workflows, or no
+central upgrade manager at all. The core runtime only persists continuations
+and moves records; compatibility and rollout rules live in ordinary TypeScript
+code chosen by the application.
 
-This project is in a proof of concept stage at the moment. However, since it is tiny, it isn't that hard to reproduce the same but considering the specific needs of your projects, use this one as a template or entirely from scratch.
+The policy used by the demos is deliberately simple: major versions are
+separate workflow families, minor versions can hand off compatible state, and
+patch changes do not need an upgrade.
 
-Building it currently requires JDK 17. It is mainly for code readability and can be easily changed to any earlier JDK version (supported by Kafka Streams).
+Concrete examples:
 
-To run a workflow, execute a class `org.js.effectful.kafka.workflow.Engine`.  It expects "workflow-resume" and other topics required by workflow to be already available. The first argument is a path to a built `.js` file. The optional second argument is a property file passed to Kafka Streams. 
+- [workflow-versioning-demo](src/main/js/demos/workflow-versioning-demo) is a
+  tiny optional helper package for the demo envelope, version comparison,
+  handoff records, and upgrade-manager workflow.
+- [workflow-trip-booking-saga-versioned](src/main/js/demos/workflow-trip-booking-saga-versioned)
+  shows `1.0 -> 1.1` handoff, `1.1.x` patch-only starts, a fresh incompatible
+  `2.0` path, and delayed release.
+- [workflow-ecommerce-versioned](src/main/js/demos/workflow-ecommerce-versioned)
+  reuses the same helper to show that versioning policy is userland workflow
+  code. Projects can keep this protocol, simplify it, or replace it entirely.
 
-Examples also use Scheduler stream for running delayed jobs. It is just a simple demo class, and it doesn't fit for production usage. In production, you'd better use something based on a third-party scheduler, such as Quartz, some cloud service, cron, and maybe your message broker already has some scheduling. To run this demo scheduler execute `org.js.effectful.kafka.workflow.Scheduler` class.
+Kafka Workflow bundles debugger-instrumented JavaScript together with the workflow runtime and persists workflow state using [@effectful/serialization](https://github.com/awto/effectfuljs/tree/main/packages/serialization).
+
+The Kafka Streams processor uses GraalVM JS to run the bundled JavaScript file. The bundle uses one debugger-instrumented code path; debugger transport can be disabled for headless runtime while keeping the code debuggable.
+
+## Status and Usage
+
+This project is still early, but the runtime is intentionally small and already
+covers the core durable-workflow mechanics: persisted continuations, refs,
+outputs, workflow threads, and cancellation-aware promise combinators. The repo
+is also useful as a template for project-specific workflow engines.
+
+There is also an alternative JVM implementation:
+[javactrl-kafka](https://github.com/javactrl/javactrl-kafka).
+
+Building currently requires JDK 17. That choice is mostly for code readability;
+the Java host can be adapted to any earlier JDK version supported by Kafka
+Streams.
+
+To run a workflow, execute `org.js.effectful.kafka.workflow.Engine`. It expects
+`workflow-resume` and the workflow output topics to already exist. The first
+argument is a path to a built `.js` bundle. The optional second argument is a
+properties file passed to Kafka Streams.
+
+Examples also use a scheduler stream for delayed jobs. The included
+`org.js.effectful.kafka.workflow.Scheduler` class is intentionally a demo
+component, not a production scheduler. Production deployments should normally
+use Quartz, a cloud scheduler, cron, broker-native scheduling, or another
+project-specific scheduling service.
+
+## Release Checklist
+
+Before publishing the JavaScript runtime package, run the same layers that CI
+uses plus the npm publish dry-run:
+
+```sh
+mvn -B package --file pom.xml
+cd src/main/js
+npm run test:integration
+npm run test:integration:chaos
+npm publish --dry-run --workspace packages/rt
+npm whoami
+npm publish --workspace packages/rt
+```
+
+`mvn package` installs Node, runs `npm ci --ignore-scripts`, builds the
+workspace, runs all workspace unit tests, and runs the Java tests. The two
+Docker Compose commands cover the real Kafka engine/scheduler demos, including
+runner-kill recovery scenarios.
 
 ## How to write workflow scripts
 
-Workflow script is a TypeScript/JavaScript file exporting async "main" function. For example [workflow-ecommerce/src/index.ts](src/main/js/packages/workflow-ecommerce/src/index.ts) and [workflow-trip-booking-saga/src/index.ts](src/main/js/packages/workflow-trip-booking-saga/src/index.ts).
+A workflow script is a TypeScript/JavaScript module exporting a default function
+or a named `main` function. The primary example in this repository is
+[src/main/js/demos/workflow-trip-booking-saga/src/index.ts](src/main/js/demos/workflow-trip-booking-saga/src/index.ts).
 
-Create a plain node package and add "@effectful/Kafka-workflow" dependency (along with [a few other 3rd party dependencies](https://github.com/awto/kafka-workflow/blob/main/src/main/js/packages/workflow-ecommerce/package.json). Transpile the script into a single independent JavaScript file using webpack. There is a TypeScript project helper in "@effectful/kafka-workflow/webpack-config-ts". It takes two arguments - an index file and an output directory. There is an example in [workflow-ecommerce/webpack.config.js](https://github.com/awto/kafka-workflow/blob/main/src/main/js/packages/workflow-ecommerce/webpack.config.js)). 
+Depend on `@effectful/kafka-workflow-rt` and bundle the workflow into a single
+debugger-instrumented JavaScript file. Demos use the shared bootstrap
+[src/main/js/demos/_build/bootstrap.ts](src/main/js/demos/_build/bootstrap.ts)
+and the shared webpack factory
+[src/main/js/demos/_build/webpack.config.js](src/main/js/demos/_build/webpack.config.js).
+A demo config only declares its output bundle and any additional source folders
+that must be instrumented.
 
 Import the runtime library:
 
-```javascript
-import * as W from "@effectful/kafka-workflow" 
+```ts
+import * as W from "@effectful/kafka-workflow-rt";
 ```
 
-There is a dedicated `"workflow-resume"` topic to pass events to the workflow program. 
+### Core API in one screen
 
-To start a new workflow, send a record into `workflow-resume` topic with a value is a string beginning with `"new:"` prefix, and the rest is a JSON passed to `main` function as its argument. The key is a unique thread identifier (string). The same key identifies the thread in the next records (but its value shouldn't start with `"new:"` there). 
+| API | What it does | Use it for |
+| --- | --- | --- |
+| `W.ref<T>(name?)` | Creates a unique awaitable external resume point. Awaiting it persists the continuation until a matching `workflow-resume` record arrives. | Waiting for activities, timers, human decisions, service replies, or any external event. |
+| `W.refId<T>(id, key?)` | Creates an awaitable resume point with a caller-provided stable id and optional resume key. | Protocols where another workflow, scheduler, or caller must know the exact ref id ahead of time. |
+| `W.outputJSON(value, topic, key?)` | Emits a Kafka record with `JSON.stringify(value)`. The key defaults to the current workflow thread id. | Commands to services, query replies, audit events, scheduler requests, and domain messages. |
+| `W.ensureThread(value, key)` | Starts another workflow thread if that key has no existing state by emitting an internal `workflow-resume` init record. | Child workflows, service-style workflows, lock managers, upgrade managers, and delayed cleanup workflows. |
+| `W.CancelToken` | Error thrown into canceled branches by workflow-aware `Promise` combinators. | Catch it at an external wait to emit domain-specific cancellation or cleanup, then rethrow unless cancellation is intentionally handled. |
+| `export const manifest = { outputTopics }` | Declares external topics written by the bundle. Internal topics such as `workflow-resume` are filtered by the host. | Topic creation, host wiring, tests, and keeping workflow output contracts next to the workflow module. |
 
-To output a record into a topic, use `W.output` function. Its first parameter is a string to put in the record's value, the second parameter is a topic name, and the third is an optional key, which is a current thread identifier by default. To use a topic in `W.output` add its name into `W.config.outputTopics` set.
+There is a dedicated `workflow-resume` topic for workflow continuations. It is
+an internal loop topic and is filtered out of declared external output topics by
+the host.
 
-There is a shortcut `W.outputJSON`, it wraps its first argument with `JSON.stringify`.
+To start a new workflow, send a record to `workflow-resume` whose value starts
+with `new:` and whose suffix is JSON passed to the workflow function. The record
+key is the workflow thread id. Later resume records use the same key.
 
-The most important function here is `W.suspend`. It returns a `W.Suspend` object which we can pass as an argument of `await` expression to suspend the whole program execution and save its state into local storage. `W.Suspend` is Thenable, but better not to use it with `then` in the current version - this can generate a not serializable state.
+To output a record, use `W.output(value, topic, key?)`. The value is a string;
+the optional key defaults to the current thread id. `W.outputJSON(value, topic,
+key?)` is the JSON shortcut.
 
-The suspended program will be resumed when `"workflow-resume"` gets a record with the current thread as its key and a JSON as a value with "ref" field equal to `W.Suspend` object's id on which the code is currently suspended (in `await` expression). 
+Declare external topics with an exported manifest:
 
-If the JSON has "error" field, it will be a raised exception in `await` exception. Otherwise, the JSON's "value" field is a result of the `await` expression.
+```ts
+export const manifest = {
+  outputTopics: ["workflow-scheduler", "saga-reserve-car"]
+};
+```
+
+`W.config.outputTopics` also exists for host/runtime defaults, but examples
+prefer `manifest.outputTopics` because it keeps topic declarations next to the
+workflow module.
+
+The main waiting primitive is `W.ref(name)`. It returns an awaitable object representing an external resume point, and the whole program state can be persisted while awaiting it. Use `W.refId(id, key?)` when a workflow protocol needs a stable caller-provided ref id. There is also a lower-level `W.suspend(...)` helper, but normal workflow code should prefer refs.
+
+Use `W.ensureThread(value, key)` when one workflow needs to start another
+workflow thread only if that thread does not already exist. Child workflows,
+service-style workflows, and the versioning demos are all built on this kind of
+ordinary thread handoff.
+
+The suspended program resumes when `workflow-resume` receives a record with the
+current thread key and a JSON value with a `ref` field equal to the current
+`W.ref(...)` id.
+
+If the JSON has an `error` field, the awaiting code receives an exception.
+Otherwise, the JSON `value` field becomes the result of the `await`.
 
 The program can suspend in many points simultaneously. And, like usual JavaScript, it can use `Promise.all`/`Promise.race`. 
 
 So if we have a code like this:
 
-```javascript
+```ts
 const car = await reserveCar();
 const hotel = await reserveHotel();
 ```
 
 and we want to start the reservation of a hotel immediately without waiting for a car we can change the code to:
 
-```javascript
+```ts
 const [car, hotel] = await Promise.all([reserveCar(), reserveHotel()]);
 ```
 
-Note `Promise.all`/`Promise.race` functions don't return a promise here. Instead, they are monkey-patched versions that support suspensions. 
+The runtime installs a workflow-aware `Promise` implementation, so `Promise.all`, `Promise.race`, `Promise.any`, and `Promise.allSettled` preserve workflow suspension and cancellation semantics across persisted steps.
 
-## Cancelation
+## Cancellation
 
-Calling of `W.cancel(asyncValue)` cancels the `asyncValue` execution. The current bottom `await` expression, which blocks the async value from being settled, will throw an exception with class `W.CancelToken`. It obviously won't cancel any running external job, but you can write a `try-catch` to properly cancel it (if possible).
+Cancellation is structured. When a workflow-aware combinator such as `Promise.race` or `Promise.all` decides that sibling branches should stop, the currently blocked `await` expression in those branches throws `W.CancelToken`. That does not cancel a running external job by itself, but the waiting branch can catch the token and emit a domain-specific cancellation command.
 
 For example:
 
-```javascript
+```ts
 async function timeout(ms: number) {
-  const resume = W.suspend();
-  W.output(`${ms}`, "workflow-scheduler", `${W.threadId}|{"ref":"${resume.id}"}`);
+  const resume = W.ref("scheduler");
+  W.output(`${ms}`, "workflow-scheduler", resume.key);
   try {
     await resume;
   } catch (e: any) {
     if (e instanceof W.CancelToken)
-      W.output(null, "workflow-scheduler", `${W.threadId}|{"ref":"${resume.id}"}`);
+      W.output("0", "workflow-scheduler", resume.key);
     throw e;
   }
-  return { type: "timeout" };
+  throw "timeout";
 }
 ```
 
-Here, we write null to a topic with the same key to cancel a previously scheduled job.
+Here, we write `"0"` to the same scheduler key to cancel a previously scheduled job.
 
-`Promise.all`/`Promise.race` also adapted to benefit from cancelation. Namely, if any argument of `Promise.all` is rejected, the implementation cancels the other not yet settled values. For `Promise.race` after anything is settled, the others are canceled.
+`Promise.all` and `Promise.race` are adapted for workflow cancellation. If any
+argument of `Promise.all` rejects, the implementation cancels the other not-yet
+settled values. After `Promise.race` settles, the losing branches are canceled.
 
-Cancelation is essential to avoid some concurrency bugs. 
+Cancellation is essential to avoid some concurrency bugs.
 
 Say, in this example:
 
-```javascript
+```ts
 try {
-   await Promise.race([
-     (async () => {
-        await timeout(100);
-        throw new Error("timeout");
-       })(),
-     (async () => {
-        const hotel = await reserveHotel();
-        compensations.push(async () => { await cancelHotel(hotel); });
-      })()]);
-catch(e) {
-   await Promise.all(compensations.map(i => i()));
+  await Promise.race([
+    (async () => {
+      await timeout(100);
+      throw new Error("timeout");
+    })(),
+    (async () => {
+      const hotel = await reserveHotel();
+      compensations.push(() => cancelHotel(hotel));
+    })()
+  ]);
+} catch (e) {
+  await Promise.all(compensations.map((run) => run()));
 }
 ```
 
 Suppose the timeout arrives before `reserveHotel` returns the value. In that case, it won't be canceled because the `catch` there will be executed before `compensations.push` is run, so it will be an empty array.
 
-There are `W.all`/`W.any` functions which are versions of `Promise.all`/`Promise.any` but without cancelation (they still propagate cancelation signals to arguments, though).
+The runtime uses cancellation-aware `Promise.race`, `Promise.all`, `Promise.any`, and `Promise.allSettled` semantics built into its patched `Promise` implementation.
+
+## Flexible userland patterns
+
+The runtime deliberately does not grow a special API for every workflow pattern.
+The demos show how to build those patterns from the same small primitives:
+
+- Sagas are normal code with a compensation stack; see
+  [workflow-trip-booking-saga](src/main/js/demos/workflow-trip-booking-saga)
+  and [saga](src/main/js/demos/temporal-ports/saga).
+- Human approval is a normal `Promise.race` between approval refs and scheduler
+  refs; see
+  [workflow-expense-approval](src/main/js/demos/workflow-expense-approval).
+- Child workflows are ordinary workflow threads started with
+  `W.ensureThread(...)`; see
+  [child-workflows](src/main/js/demos/temporal-ports/child-workflows).
+- Queries, signals, and updates are ordinary messages handled by a serialized
+  workflow loop; see
+  [message-introduction](src/main/js/demos/temporal-ports/message-introduction)
+  and [safe-message-handlers](src/main/js/demos/temporal-ports/safe-message-handlers).
+- Versioning is ordinary workflow code. The demos use envelopes,
+  upgrade-manager workflows, handoff messages, and delayed-release workflows,
+  but applications can define a different protocol; see
+  [workflow-trip-booking-saga-versioned](src/main/js/demos/workflow-trip-booking-saga-versioned)
+  and [workflow-ecommerce-versioned](src/main/js/demos/workflow-ecommerce-versioned).
 
 ## Debugging
 
-Currently, there is no special debugger for workflow scripts, but probably there'll be some soon. However, the workflow script is a usual async TS/JS program. So before transpiling it into a workflow definition, we can debug it as usual TS/JS program with any debugger of choice (I would recommend my productivity-boosting [effectful debugger](https://marketplace.visualstudio.com/items?itemName=effectful.debugger) for this - it has time traveling, data breakpoints, and more).
-
-If `EFFECTFUL_KAFKA_WORKFLOW_MOCK` environment variable isn't empty, the import will load the library with mocks for API functions for testing and debugging.
+The workflow script is a usual async TS/JS program compiled through the Effectful debugger instrumentation. The demos use a single code path for debug and runtime execution. In headless Kafka/GraalJS runs, the debugger transport can be disabled without removing instrumentation, so the same workflow bundle can still be opened in the debugger when needed.
 
 ## Running multiple workflows
 
-Only one index file is possible in the current version, which means we can run only one workflow. However, we can integrate a workflow dispatcher in this master index file. It will use some argument of "new:" messages to run any workflow. There are many better not implemented (but simple to implement) options.
+A bundle can export a dispatcher that selects a workflow by a field in the
+start envelope. Several demos use this shape. For example, the versioned demos
+route between business workflows, upgrade-manager workflows, and delayed-release
+workflows in the same bundle without requiring runtime-level workflow registry
+features.
 
 ---
 
-## Possible extensions
+## Scope and extension points
 
-The project's current goal is to provide a simple example for workflow definitions. However, many possible (easy to implement) extensions make workflows even simpler and more reliable.
+The current direction is to keep the runtime small and push policy into normal
+workflow code. That is why the demos implement sagas, versioning, human approval,
+queries, updates, child workflows, and delayed cleanup without adding dedicated
+runtime APIs for those concepts.
 
-### TODO: Better serialization
+Useful future extensions should follow the same rule:
 
-The whole script state is stored into a schema-less JSON using [@effectful/serialization](https://github.com/awto/effectfuljs/tree/main/packages/serialization) library. It is worth adding support for typed binary serialization, especially for data processing workflows.
-
-In the current version, many values are still not serializable. Functions must be registered in a serialization library if we want function references to be serializable. This is, however, an easy-to-solve limitation because it is a transpiler. Effectful debugger already has all the functions with captured variables serializable by default (including many runtime objects, not serializable here, such as Promise).
-
-Not serializable values must be registered with `S.regOpaqueObject` (`S.regConstructor` for classes constructor) and `bind` method usage instead of closures for functions. Here `S` is an import of `@effectful/serialization`. You can also use any third-party serialization library instead. 
-
-### TODO: Implicit parallelism
-
-EffectfulJS has experimental support of implicit parallelism, but its implementation is highly experimental and doesn't yet support state serialization. Nevertheless, it can significantly clean up the resulting code. However, for efficient usage, it needs a debugger.
-
-### TODO: Debugger
-
-Effectful JS is used for debugger's implementation already, namely [Effectful Debugger](https://marketplace.visualstudio.com/items?itemName=effectful.debugger). Its primary but not yet finished goal is to add debugging features to effectful programs. However, it already works for plain JS/TS and has a few extra productivity-boosting features such as time-traveling, persistent state, data breakpoints.
-
-For Kafka, we'll have time traveling for free. Since topics (if compaction is disabled) will keep the whole history.
-
-### TODO: Conflicts resolutions
-
-Async computations are notorious for introducing non-determinism in JavaScript and concurrency-related problems. Say, for example, we have code like this:
-
-```javascript
-const car = await availableCar();
-if (account.balance >= car.cost) {
-  await reserve(car);
-  account.balance-=car.cost; 
-}
-```
-
-Here we have a common concurrency bug. The balance there may become negative if something else reduced it when this thread rested in `await reserve`. It is not a problem specific to long-running workflows scripts, it would work the same way with usual JavaScript async functions. 
-
-However, we can leverage Kafka again to fix this in workflow scripts and make them deterministic. We can use a technique similar to Software Transactional Memory, which is based on the same log concept. It is simple to record changes in script objects and local variables and detect conflicts. If there is any, we roll back the whole transaction and start it from scratch. We can also handle side effects here by simulating some exceptions and the output places, thus forcing them to be canceled.
-
-We can use the feature to define even more tidy workflows.
-
-```javascript
-const car = await availableCar();
-if (account.balance >= car.cost) {
-  await reserve(car);
-  account.balance -= car.cost; 
-} else { 
-  await W.retry; 
-}
-```
-
-If the balance amount isn't enough, we retry the whole transaction, hoping it will have more money next. But it won't replay it immediately, only when there is a change to any variable read in this thread.
-
-### TODO: Always running workflows
-
-Instead of long running workflow scripts we can have always running scripts. In this case, when the workflow starts, it never ends so that we can write code like this:
-
-```javascript
-let paid = 0
-for(const i of subscriptions) {
-  for (cost j of i.payments) {
-    paid += j
-  }
-}
-```
-
-The script runs like a usual JS. First we load subscriptions and payments from some DB. If it is plain JS we need to re-execute the whole script to keep the "paid" variable up to date. But we can also derive which part of the execution trace to recalculate. And in this case, this can be just a single iteration.
-
-It is, however, a big task, with quite a few complex things to solve, e.g., how to update a script to a new version (we don't want to recalculate the whole program there too, only some affected parts). Moreover, the Kafka log doesn't fit here too. For example, we need a higher-level logarithmic time access tree instead of a constant time access sequence. However, we can probably implement this kind of data structure on the Kafka log.
-
-### TODO: Other runners
-
-This approach doesn't require Kafka and will work on any streams processor. It only needs a join capability of a stream with a state. The system will inherit all the reliability and scalability from the runner.  
-
-Some RDBMS may be a runner too, since the concept of tables is dual to streams. 
+- Better serialization formats can improve production storage efficiency, while
+  the workflow API remains direct async code.
+- Other runners can reuse the same model if they provide a stream joined with a
+  durable state store.
+- Debugger integrations can improve the development loop without changing the
+  runtime contract.

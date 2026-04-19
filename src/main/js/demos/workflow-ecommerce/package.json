@@ -1,0 +1,19 @@
+{
+  "name": "workflow-ecommerce",
+  "version": "1.0.0",
+  "description": "Ecommerce workflow example for kafka-workflow",
+  "main": "index.js",
+  "author": "Vitaliy Akimov <vitaliy.akimov@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "webpack",
+    "test": "tsc && npm run build && node --test --test-force-exit test/*.js",
+    "test:integration": "./integration/run.sh",
+    "test:integration:chaos": "./integration/run-chaos.sh"
+  },
+  "dependencies": {
+    "@effectful/kafka-workflow-rt": "^0.1.0",
+    "@effectful/serialization": "^2.0.11"
+  }
+}

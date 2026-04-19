@@ -1,0 +1,17 @@
+{
+  "name": "workflow-versioning-demo",
+  "version": "1.0.0",
+  "description": "Small envelope and handoff helpers for versioned workflow demos",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.js"
+  },
+  "dependencies": {
+    "@effectful/kafka-workflow-rt": "^0.1.0",
+    "@effectful/serialization": "^2.0.11"
+  }
+}

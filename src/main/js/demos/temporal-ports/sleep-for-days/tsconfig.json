@@ -1,0 +1,10 @@
+{
+  "extends": "../../_build/tsconfig.workflow-lib.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib"
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

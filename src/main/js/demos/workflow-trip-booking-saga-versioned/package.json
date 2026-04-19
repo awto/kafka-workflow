@@ -1,0 +1,23 @@
+{
+  "name": "workflow-trip-booking-saga-versioned",
+  "version": "1.0.0",
+  "description": "Versioned trip booking saga demo for kafka-workflow",
+  "main": "index.js",
+  "author": "Vitaliy Akimov <vitaliy.akimov@gmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "webpack",
+    "test": "tsc && npm run build && node --test --test-force-exit test/*.js",
+    "test:integration": "./integration/run.sh",
+    "test:integration:chaos": "./integration/run-chaos.sh"
+  },
+  "dependencies": {
+    "@effectful/kafka-workflow-rt": "^0.1.0",
+    "@effectful/serialization": "^2.0.11",
+    "workflow-trip-booking-saga-v1_0": "^1.0.0",
+    "workflow-trip-booking-saga-v1_1": "^1.0.0",
+    "workflow-trip-booking-saga-v2_0": "^1.0.0",
+    "workflow-versioning-demo": "^1.0.0"
+  }
+}

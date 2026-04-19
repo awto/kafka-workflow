@@ -3,17 +3,17 @@
 
   <groupId>org.js.effectful</groupId>
   <artifactId>kafka-workflow</artifactId>
-  <version>0.1</version>
+  <version>2.1</version>
   <packaging>jar</packaging>
 
   <name>Effectful Kafka Workflow</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <kafka.version>3.0.0</kafka.version>
-    <log4j.version>2.17.1</log4j.version>
-    <graalvm.version>22.0.0.2</graalvm.version>
-    <junit-jupiter.version>5.8.2</junit-jupiter.version>
+    <kafka.version>4.2.0</kafka.version>
+    <log4j.version>2.25.4</log4j.version>
+    <graalvm.version>25.0.2</graalvm.version>
+    <junit-jupiter.version>5.12.2</junit-jupiter.version>
   </properties>
 
   <repositories>
@@ -34,7 +34,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
+        <version>3.15.0</version>
         <configuration>
           <source>17</source>
           <target>17</target>
@@ -43,7 +43,7 @@
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>
-        <version>1.12.1</version>
+        <version>2.0.0</version>
         <executions>
           <execution>
             <id>install node and npm</id>
@@ -52,12 +52,21 @@
             </goals>
           </execution>
           <execution>
-            <id>npm install</id>
+            <id>npm ci</id>
             <goals>
               <goal>npm</goal>
             </goals>
             <configuration>
-              <arguments>install</arguments>
+              <arguments>ci --ignore-scripts</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm build</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run build --workspaces</arguments>
             </configuration>
           </execution>
           <execution>
@@ -65,15 +74,23 @@
             <goals>
               <goal>npm</goal>
             </goals>
-            <phase>test</phase>
+            <phase>process-test-resources</phase>
             <configuration>
               <arguments>test</arguments>
             </configuration>
           </execution>
         </executions>
         <configuration>
-          <nodeVersion>v17.4.0</nodeVersion>
+          <nodeVersion>v24.11.1</nodeVersion>
           <workingDirectory>src/main/js</workingDirectory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.5</version>
+        <configuration>
+          <argLine>-Dpolyglot.engine.WarnInterpreterOnly=false</argLine>
         </configuration>
       </plugin>
     </plugins>
@@ -100,6 +117,7 @@
       <groupId>org.graalvm.js</groupId>
       <artifactId>js</artifactId>
       <version>${graalvm.version}</version>
+      <type>pom</type>
       <scope>runtime</scope>
     </dependency>
     <dependency>

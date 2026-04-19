@@ -1,14 +1,37 @@
 {
   "name": "js",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Workspaces root for Effectful Kafka Workflow projects",
   "main": "index.js",
   "author": "Vitaliy Akimov <vitaliy.akimov@gmail.com>",
   "license": "MIT",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*",
+    "demos/*",
+    "demos/temporal-ports/*"
+  ],
   "scripts": {
+    "link:effectful": "node scripts/link-effectful.mjs",
     "prepare": "npm run build --workspaces",
-    "test": "npm test --workspaces"
+    "test": "npm test --workspaces",
+    "test:temporal-ports": "npm test --workspace demos/temporal-ports/activities-cancellation-heartbeating --workspace demos/temporal-ports/cancellation-scopes --workspace demos/temporal-ports/continue-as-new --workspace demos/temporal-ports/child-workflows --workspace demos/temporal-ports/early-return --workspace demos/temporal-ports/execute-update --workspace demos/temporal-ports/expense --workspace demos/temporal-ports/food-delivery --workspace demos/temporal-ports/hello-world --workspace demos/temporal-ports/message-introduction --workspace demos/temporal-ports/query-subscriptions --workspace demos/temporal-ports/safe-message-handlers --workspace demos/temporal-ports/saga --workspace demos/temporal-ports/signals-queries --workspace demos/temporal-ports/sleep-for-days --workspace demos/temporal-ports/state --workspace demos/temporal-ports/mutex --workspace demos/temporal-ports/nexus-cancellation --workspace demos/temporal-ports/nexus-hello --workspace demos/temporal-ports/nextjs-ecommerce-oneclick --workspace demos/temporal-ports/patching-api --workspace demos/temporal-ports/timer-progress --workspace demos/temporal-ports/timer-examples --workspace demos/temporal-ports/worker-versioning",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:integration:chaos": "npm run test:integration:chaos --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.28.6",
+    "@babel/core": "^7.29.0",
+    "@effectful/debugger": "^2.0.11",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.0",
+    "babel-loader": "^10.1.1",
+    "cross-env": "^10.1.0",
+    "jest": "^30.3.0",
+    "kafkajs": "^2.2.4",
+    "path-browserify": "^1.0.1",
+    "typescript": "^6.0.3",
+    "webpack": "^5.106.2",
+    "webpack-cli": "^7.0.2"
   }
 }
