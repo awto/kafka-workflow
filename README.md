@@ -16,7 +16,16 @@ Workflow scripts run on [Kafka Streams](https://kafka.apache.org/documentation/s
 Kafka supplies the hard distributed-systems pieces: partitioning, recovery,
 elastic stream processing, and durable logs. The workflow runtime stays small:
 direct `async` code, durable refs, output records, workflow threads, and
-cancellation-aware promise combinators.
+cancellation-aware promise combinators. If Kafka is already part of the
+platform, workflow execution can reuse the same brokers, topics, Streams
+deployment model, monitoring, ACLs, retention policy, and operational tooling
+instead of introducing a separate workflow cluster.
+
+Kafka is the implementation substrate here, not the essence of the model. The
+same approach can run on any stateless stream transformer that consumes a
+durable log, joins each record with durable per-key state, and writes output
+records. Kafka Streams is a practical host for that contract because many
+systems already operate Kafka well.
 
 The design rule is that domain policy should stay in workflow code. Sagas,
 human approval, queries, updates, child workflows, delayed cleanup, and
@@ -29,14 +38,36 @@ API.
 | Conventional workflow engines often add... | Kafka Workflow keeps it as... |
 | --- | --- |
 | Workflow-specific DSLs and handler registries | Plain TypeScript functions, loops, branches, and `await`. |
+| YAML/JSON DAG definitions | Real code with types, lexical scope, imports, tests, and ordinary refactoring tools. |
+| Graphical workflow designers | Source-controlled workflow code that can be reviewed, debugged, and changed like the rest of the application. |
+| Heavy workflow-as-code runtimes | A small Kafka Streams host plus serialized JavaScript continuations. |
+| Strict side-effect-free workflow definitions | Direct async code that emits records explicitly and keeps domain effects at protocol boundaries. |
 | Activity, timer, signal, query, update, child-workflow, and versioning APIs | Durable refs, output records, workflow threads, and normal message protocols. |
 | Framework-owned versioning and patch markers | Userland upgrade workflows and handoff envelopes, when the application needs them. |
-| Runtime-level saga abstractions | Direct compensation is just a set of function callback written in the workflow. |
+| Runtime-level saga abstractions | Direct compensation callbacks written in workflow code. |
 | Special cancellation scope APIs | Cancellation-aware `Promise.race`, `Promise.all`, `Promise.any`, and `Promise.allSettled`. |
 
 The result is a small core that is easy to inspect and easy to replace. The
 demos are not toy wrappers around hidden runtime features; they are the
 patterns themselves, implemented as ordinary workflow code.
+
+Declarative DAGs and visual workflow editors can be useful for small static
+pipelines, but they often become a second programming language once real
+business logic appears. YAML and JSON graphs tend to hide control flow in
+configuration, make refactors mechanical and brittle, and produce diffs that
+explain structure changes rather than intent. Graphical designs have a similar
+problem: they look approachable at first, then become hard to review, merge,
+test, and debug when the workflow is long-lived, versioned, or full of
+exception paths. Kafka Workflow keeps the workflow in code so failures can be
+understood with normal stack traces, tests, logs, and debugger sessions.
+
+Some workflow-as-code systems improve on DAGs by letting users write real
+programs, but then replace the graphical complexity with a large runtime model:
+activity workers, special APIs, determinism rules, replay constraints, and
+carefully separated side-effect-free workflow definitions. Those tradeoffs can
+be valid, but they are still a framework to learn and obey. Kafka Workflow is
+smaller: workflow code awaits durable refs, emits Kafka records, and keeps
+side effects explicit at message boundaries chosen by the application.
 
 ## Small core
 
@@ -404,7 +435,7 @@ Useful future extensions should follow the same rule:
 
 - Better serialization formats can improve production storage efficiency, while
   the workflow API remains direct async code.
-- Other runners can reuse the same model if they provide a stream joined with a
-  durable state store.
+- Other runners can reuse the same contract when they provide a durable input
+  log, per-key state, and explicit output records.
 - Debugger integrations can improve the development loop without changing the
   runtime contract.
